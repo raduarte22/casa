@@ -113,7 +113,7 @@ const CFG = {
 const sb = CFG.url.includes('SEU-PROJETO') ? null : supabase.createClient(CFG.url, CFG.key);
 
 const S = {view:'auth', modo:'entrar', user:null, casa:null, membros:[], tarefas:[], compras:[], eventos:[], pags:[], hist:[], domesticas:[],
-  tab:'hoje', filtroT:'pend', sync:'ligar', canal:null, timer:null};
+  tab:'hoje', filtroT:'pend', sync:'ligar', canal:null, timer:null, ics:[], icsAt:0, icsErro:null};
 
 /* ---------- utilitários ---------- */
 const $ = s => document.querySelector(s);
@@ -178,6 +178,31 @@ async function carregar() {
   const [m, t, c, e, p, h, dm] = res;
   Object.assign(S, {membros: m.data, tarefas: t.data, compras: c.data, eventos: e.data, pags: p.data, hist: h.data, domesticas: dm.data});
   render();
+  if (await carregarIcs()) render();
+}
+
+/* ---------- calendário iCalendar ---------- */
+// Pede os eventos à função "agenda-ics" (no Supabase). Só volta a pedir ao fim de 10 min, salvo se forçado.
+async function carregarIcs(force = false) {
+  if (!S.casa?.ics_url) { S.ics = []; return false; }
+  if (!force && Date.now() - S.icsAt < 10 * 60e3) return false;
+  S.icsAt = Date.now();
+  const {data, error} = await sb.functions.invoke('agenda-ics', {body: {de: addMeses(hoje(), -1), ate: addMeses(hoje(), 6)}});
+  if (error) {
+    let msg = 'Não consegui ler o calendário.';
+    try { const j = await error.context.json(); if (j?.erro) msg = j.erro; } catch (_) {}
+    S.icsErro = msg; console.error(error);
+  } else {
+    S.ics = data.eventos || []; S.icsErro = null;
+  }
+  return true;
+}
+
+// eventos da casa e do calendário externo, na mesma lista
+function todosEventos(de, ate) {
+  const loc = S.eventos.filter(e => e.data >= de && e.data <= ate).map(e => ({...e, _ics: false}));
+  const ext = S.ics.filter(e => e.data >= de && e.data <= ate).map(e => ({...e, _ics: true}));
+  return [...loc, ...ext].sort((a, b) => a.data.localeCompare(b.data) || (a.hora || '').localeCompare(b.hora || ''));
 }
 
 // agrupa várias alterações seguidas numa só atualização
@@ -207,10 +232,10 @@ async function boot() {
     S.casa = null; S.view = 'auth'; return render();
   }
   try {
-    const {data, error} = await sb.from('casa_membros').select('nome, casas(id, nome, codigo_convite)').eq('user_id', S.user.id).maybeSingle();
+    const {data, error} = await sb.from('casa_membros').select('nome, casas(id, nome, codigo_convite, ics_url)').eq('user_id', S.user.id).maybeSingle();
     if (error) throw error;
     if (!data) { S.view = 'onboard'; return render(); }
-    S.casa = {id: data.casas.id, nome: data.casas.nome, codigo: data.casas.codigo_convite};
+    S.casa = {id: data.casas.id, nome: data.casas.nome, codigo: data.casas.codigo_convite, ics_url: data.casas.ics_url};
     S.view = 'app';
     await carregar();
     subscrever();
@@ -285,7 +310,16 @@ function itemCompra(c) {
     <button class="ghost" data-a="del" data-t="compras" data-id="${c.id}" aria-label="Apagar">✕</button></div>`;
 }
 
+function itemIcs(e) {
+  return `<div class="item">
+    <div class="hora">${e.hora || '—'}</div>
+    <div class="grow"><div class="tt">${esc(e.titulo)}</div>
+      <div class="meta"><span class="tag">📆 Calendário</span></div>
+      ${e.notas ? `<p class="nota">${esc(e.notas)}</p>` : ''}</div></div>`;
+}
+
 function itemEvento(e) {
+  if (e._ics) return itemIcs(e);
   return `<div class="item click" data-a="edit-ev" data-id="${e.id}">
     <div class="hora">${e.hora ? e.hora.slice(0, 5) : '—'}</div>
     <div class="grow"><div class="tt">${esc(e.titulo)}</div>
@@ -359,7 +393,7 @@ const fDom = (d = {}) => `<h2>${d.id ? 'Editar tarefa da casa' : 'Nova tarefa da
 function tHoje() {
   const h = hoje();
   const tHj = S.tarefas.filter(t => !t.feito && t.data_limite && t.data_limite <= h).sort(ordemT);
-  const evHj = S.eventos.filter(e => e.data === h);
+  const evHj = todosEventos(h, h);
   const porComprar = S.compras.filter(c => !c.comprado).length;
   const domHj = S.domesticas.filter(d => d.data_execucao <= h).sort((a, b) => a.data_execucao.localeCompare(b.data_execucao));
   const aPagar = S.pags.filter(p => p.ativo && diasEntre(p.proximo_vencimento, h) <= 7);
@@ -402,9 +436,14 @@ function tCompras() {
 
 function tAgenda() {
   const hj = hoje(), g = {};
-  S.eventos.filter(e => e.data >= hj).forEach(e => (g[e.data] = g[e.data] || []).push(e));
+  todosEventos(hj, '9999-12-31').forEach(e => (g[e.data] = g[e.data] || []).push(e));
   const dias = Object.keys(g).sort();
-  return `<button class="btn" data-a="novo-ev">+ Novo compromisso</button>
+  const topo = S.casa.ics_url
+    ? `<div class="rowb"><small>📆 Calendário ligado${S.icsErro ? ` · <span class="bad">${esc(S.icsErro)}</span>` : ''}</small>
+        <button class="link-s" data-a="ics-sync">Atualizar</button></div>`
+    : `<div class="vazio">Liga o teu calendário (Google, iCloud ou Outlook) para veres aqui os compromissos.<br>
+        <button class="link-s" data-a="casa">Configurar link iCalendar</button></div>`;
+  return `${topo}<button class="btn" data-a="novo-ev">+ Novo compromisso</button>
     ${dias.length ? dias.map(d => `<h3 class="sec">${dataLonga(d)}</h3><div class="card list">${g[d].map(itemEvento).join('')}</div>`).join('')
       : vazio('Sem compromissos marcados. Regista almoços, consultas e idas ao médico.')}`;
 }
@@ -472,6 +511,13 @@ const fPag = (p = {}) => `<h2>${p.id ? 'Editar pagamento' : 'Novo pagamento'}</h
 const fCasa = () => `<h2>${esc(S.casa.nome)}</h2>
   <p class="mut">Partilha este código com quem vive contigo para entrarem na mesma casa:</p>
   <div class="code">${esc(S.casa.codigo)}</div>
+  <h3 class="sec">Calendário (iCalendar)</h3>
+  <form data-form="ics">
+    <label>Link do calendário (.ics ou webcal://)</label>
+    <input name="url" value="${esc(S.casa.ics_url)}" placeholder="https://calendar.google.com/…/basic.ics" autocomplete="off">
+    <small>Google: Definições do calendário → "Endereço secreto no formato iCal". iCloud: Partilhar calendário → calendário público. Outlook: Publicar calendário → link ICS.</small>
+    <button class="btn">Guardar link</button>
+  </form>
   <h3 class="sec">Pessoas</h3>
   <div class="card list">${S.membros.map(m => `<div class="item"><div class="grow"><b>${esc(m.nome)}</b>${m.user_id === S.user.id ? ' <small>(tu)</small>' : ''}</div></div>`).join('')}</div>
   <button class="btn ghost" data-a="sair">Terminar sessão</button>
@@ -527,7 +573,15 @@ const FORMS = {
     categoria: fd.categoria || null, ativo: fd.ativo === 'on', notas: fd.notas || null}, fd.id, 'Pagamento guardado'),
   compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria}, null, 'Adicionado à lista'),
   dom: fd => gravar('tarefas_domesticas', {titulo: fd.titulo, responsavel: fd.responsavel, periodicidade: fd.periodicidade,
-    data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada')
+    data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada'),
+  ics: async fd => {
+    const url = (fd.url || '').trim() || null;
+    const {error} = await sb.from('casas').update({ics_url: url}).eq('id', S.casa.id);
+    if (error) throw error;
+    S.casa.ics_url = url;
+    closeSheet(); toast(url ? 'Calendário ligado' : 'Calendário desligado');
+    await carregarIcs(true); render();
+  }
 };
 
 document.addEventListener('submit', async e => {
@@ -576,6 +630,7 @@ document.addEventListener('click', async e => {
         if (error) throw error;
         toast('Lista limpa'); return agendar();
       }
+      case 'ics-sync': await carregarIcs(true); render(); return toast(S.icsErro ? 'Não foi possível atualizar' : 'Calendário atualizado');
       case 'nova-d': return openSheet(fDom());
       case 'edit-d': return openSheet(fDom(S.domesticas.find(x => x.id === id)));
       case 'feito-d': {

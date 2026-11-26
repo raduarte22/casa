@@ -286,7 +286,7 @@ function itemTarefa(t) {
 function itemCompra(c) {
   return `<div class="item ${c.comprado ? 'feito' : ''}">
     <button class="chk ${c.comprado ? 'on' : ''}" data-a="toggle-c" data-id="${c.id}" aria-label="Comprado">${c.comprado ? '✓' : ''}</button>
-    <div class="grow"><div class="tt">${esc(c.nome)}</div><div class="meta"><span>${esc(nomeDe(c.criado_por))}</span></div></div>
+    <div class="grow"><div class="tt">${esc(c.nome)}</div><div class="meta">${c.categoria ? `<span class="tag">${esc(c.categoria)}</span>` : ''}<span>${esc(nomeDe(c.criado_por))}</span></div></div>
     <button class="ghost" data-a="del" data-t="compras" data-id="${c.id}" aria-label="Apagar">✕</button></div>`;
 }
 
@@ -415,7 +415,8 @@ function tCompras() {
   const grupos = {};
   pend.forEach(c => { const k = DIVISOES.includes(c.divisao) ? c.divisao : 'Geral'; (grupos[k] = grupos[k] || []).push(c); });
   return `<form class="quick" data-form="compra"><input name="nome" required placeholder="Adicionar à lista…" autocomplete="off">
-      <select name="divisao">${DIVISOES.map(c => `<option>${c}</option>`).join('')}</select>
+      <select name="categoria" aria-label="Categoria">${CAT_C.map(c => `<option>${c}</option>`).join('')}</select>
+      <select name="divisao" aria-label="Divisão">${DIVISOES.map(c => `<option>${c}</option>`).join('')}</select>
       <button class="btn-round" aria-label="Adicionar">+</button></form>
     ${pend.length ? Object.keys(grupos).map(k => `<h3 class="sec">${esc(k)}</h3><div class="card list">${grupos[k].map(itemCompra).join('')}</div>`).join('')
       : vazio('A lista de compras está vazia 🛍️')}
@@ -549,7 +550,7 @@ const FORMS = {
     quem: fd.quem || null, notas: fd.notas || null}, fd.id, 'Compromisso guardado'),
   pag: fd => gravar('pagamentos', {nome: fd.nome, valor: +fd.valor, frequencia: fd.frequencia, proximo_vencimento: fd.proximo_vencimento,
     categoria: fd.categoria || null, ativo: fd.ativo === 'on', notas: fd.notas || null}, fd.id, 'Pagamento guardado'),
-  compra: fd => gravar('compras', {nome: fd.nome.trim(), divisao: fd.divisao}, null, 'Adicionado à lista'),
+  compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria || null, divisao: fd.divisao}, null, 'Adicionado à lista'),
   dom: fd => gravar('tarefas_domesticas', {titulo: fd.titulo, divisao: fd.divisao, responsavel: fd.responsavel,
     periodicidade: fd.periodicidade, data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada')
 };

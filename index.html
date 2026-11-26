@@ -322,33 +322,52 @@ const DFREQ = {
 };
 const proxDom = f => DFREQ[f].d ? addDias(hoje(), DFREQ[f].d) : addMeses(hoje(), DFREQ[f].m);
 
+const DIVISOES = ['Cozinha', 'Sala', 'Quarto', 'Casa de banho', 'Lavandaria', 'Exterior', 'Geral'];
+const selDiv = v => `<select name="divisao">${DIVISOES.map(x => `<option ${x === (v || 'Geral') ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
+const feitaHoje = d => d.ultima_feita === hoje();
+// diária: aparece todos os dias; as outras, quando chegam à data (ou se foram feitas hoje)
+const devidaHoje = d => d.periodicidade === 'diaria' || d.data_execucao <= hoje() || feitaHoje(d);
+const ordemDom = (a, b) => a.data_execucao.localeCompare(b.data_execucao);
+function porDivisao(arr) {
+  const g = {};
+  arr.forEach(x => { const k = DIVISOES.includes(x.divisao) ? x.divisao : 'Geral'; (g[k] = g[k] || []).push(x); });
+  return DIVISOES.filter(k => g[k]).map(k => ({k, itens: g[k]}));
+}
+const blocoDom = (lista, msg) => lista.length
+  ? porDivisao(lista).map(g => `<h3 class="sec">${g.k}</h3><div class="card list">${g.itens.map(itemDom).join('')}</div>`).join('')
+  : vazio(msg);
+
 function tDom() {
-  const lista = [...S.domesticas].sort((a, b) => a.data_execucao.localeCompare(b.data_execucao));
+  const hojeL = S.domesticas.filter(devidaHoje).sort(ordemDom);
+  const prox = S.domesticas.filter(d => !devidaHoje(d)).sort(ordemDom);
   return `<button class="btn" data-a="nova-d">+ Nova tarefa da casa</button>
-    ${lista.length ? `<div class="card list">${lista.map(itemDom).join('')}</div>`
-      : vazio('Define as tarefas da casa: louça, lixo, limpeza, filtros… com responsável e periodicidade.')}
-    <small>Ao marcar como feita, a tarefa avança automaticamente para a próxima data.</small>`;
+    <small>Para hoje · ${dataLonga(hoje())}</small>
+    ${blocoDom(hojeL, 'Nada para fazer hoje. ✨')}
+    ${prox.length ? `<h3 class="sec">Próximas</h3>${blocoDom(prox, '')}` : ''}`;
 }
 
 function itemDom(d) {
-  const dif = diasEntre(d.data_execucao, hoje());
-  const estado = dif < 0 ? `<span class="bad">Atrasada · ${dataCurta(d.data_execucao)}</span>`
+  const feita = feitaHoje(d), dif = diasEntre(d.data_execucao, hoje());
+  let estado = '';
+  if (feita) estado = '<span class="tag">Feita hoje</span>';
+  else if (d.periodicidade !== 'diaria') estado = dif < 0 ? `<span class="bad">Atrasada · ${dataCurta(d.data_execucao)}</span>`
     : dif === 0 ? '<span class="warn">Hoje</span>' : `<span>${dataCurta(d.data_execucao)}</span>`;
-  return `<div class="item">
+  return `<div class="item ${feita ? 'feito' : ''}">
+    <button class="chk ${feita ? 'on' : ''}" data-a="toggle-d" data-id="${d.id}" aria-label="Feito">${feita ? '✓' : ''}</button>
     <div class="grow click" data-a="edit-d" data-id="${d.id}">
       <div class="tt">${esc(d.titulo)}</div>
       <div class="meta"><span class="tag">${DFREQ[d.periodicidade].l}</span>
         <span>👤 ${esc(nomeDe(d.responsavel)) || 'Sem responsável'}</span>${estado}</div>
       ${d.notas ? `<p class="nota">${esc(d.notas)}</p>` : ''}
-      ${d.ultima_feita ? `<small>Última vez: ${dataCurta(d.ultima_feita)}${d.feita_por ? ' por ' + esc(nomeDe(d.feita_por)) : ''}</small>` : ''}
-    </div>
-    <button class="btn-s" data-a="feito-d" data-id="${d.id}">Feito</button></div>`;
+      ${d.ultima_feita && d.feita_por ? `<small>Última vez: ${dataCurta(d.ultima_feita)} por ${esc(nomeDe(d.feita_por))}</small>` : ''}
+    </div></div>`;
 }
 
 const fDom = (d = {}) => `<h2>${d.id ? 'Editar tarefa da casa' : 'Nova tarefa da casa'}</h2>
 <form data-form="dom">
   ${d.id ? `<input type="hidden" name="id" value="${d.id}">` : ''}
   <label>Tarefa</label><input name="titulo" required value="${esc(d.titulo)}" placeholder="ex: Tirar o lixo, Lavar a loiça">
+  <label>Divisão</label>${selDiv(d.divisao)}
   <div class="grid2 f"><div><label>Responsável</label><select name="responsavel" required>${S.membros.map(m =>
       `<option value="${m.user_id}" ${m.user_id === d.responsavel ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></div>
     <div><label>Periodicidade</label><select name="periodicidade">${Object.entries(DFREQ).map(([k, v]) =>
@@ -364,7 +383,7 @@ function tHoje() {
   const tHj = S.tarefas.filter(t => !t.feito && t.data_limite && t.data_limite <= h).sort(ordemT);
   const evHj = S.eventos.filter(e => e.data === h);
   const porComprar = S.compras.filter(c => !c.comprado).length;
-  const domHj = S.domesticas.filter(d => d.data_execucao <= h).sort((a, b) => a.data_execucao.localeCompare(b.data_execucao));
+  const domHj = S.domesticas.filter(devidaHoje).sort(ordemDom);
   const aPagar = S.pags.filter(p => p.ativo && diasEntre(p.proximo_vencimento, h) <= 7);
   const total = aPagar.reduce((s, p) => s + (+p.valor), 0);
   return `<div class="hero"><small>${dataLonga(h)}</small>
@@ -374,7 +393,7 @@ function tHoje() {
     <h3 class="sec">Tarefas de hoje e atrasadas</h3>
     ${tHj.length ? `<div class="card list">${tHj.map(itemTarefa).join('')}</div>` : vazio('Sem tarefas para hoje.')}
     <h3 class="sec">Casa · para fazer</h3>
-    ${domHj.length ? `<div class="card list">${domHj.map(itemDom).join('')}</div>` : vazio('Nenhuma tarefa da casa para hoje.')}
+    ${blocoDom(domHj, 'Nenhuma tarefa da casa para hoje.')}
     <h3 class="sec">Agenda de hoje</h3>
     ${evHj.length ? `<div class="card list">${evHj.map(itemEvento).join('')}</div>` : vazio('Sem compromissos hoje.')}`;
 }
@@ -393,9 +412,9 @@ function tTarefas() {
 function tCompras() {
   const pend = S.compras.filter(c => !c.comprado), feitos = S.compras.filter(c => c.comprado);
   const grupos = {};
-  pend.forEach(c => { const k = c.categoria || 'Outros'; (grupos[k] = grupos[k] || []).push(c); });
+  pend.forEach(c => { const k = DIVISOES.includes(c.divisao) ? c.divisao : 'Geral'; (grupos[k] = grupos[k] || []).push(c); });
   return `<form class="quick" data-form="compra"><input name="nome" required placeholder="Adicionar à lista…" autocomplete="off">
-      <select name="categoria">${CAT_C.map(c => `<option>${c}</option>`).join('')}</select>
+      <select name="divisao">${DIVISOES.map(c => `<option>${c}</option>`).join('')}</select>
       <button class="btn-round" aria-label="Adicionar">+</button></form>
     ${pend.length ? Object.keys(grupos).map(k => `<h3 class="sec">${esc(k)}</h3><div class="card list">${grupos[k].map(itemCompra).join('')}</div>`).join('')
       : vazio('A lista de compras está vazia 🛍️')}
@@ -529,9 +548,9 @@ const FORMS = {
     quem: fd.quem || null, notas: fd.notas || null}, fd.id, 'Compromisso guardado'),
   pag: fd => gravar('pagamentos', {nome: fd.nome, valor: +fd.valor, frequencia: fd.frequencia, proximo_vencimento: fd.proximo_vencimento,
     categoria: fd.categoria || null, ativo: fd.ativo === 'on', notas: fd.notas || null}, fd.id, 'Pagamento guardado'),
-  compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria}, null, 'Adicionado à lista'),
-  dom: fd => gravar('tarefas_domesticas', {titulo: fd.titulo, responsavel: fd.responsavel, periodicidade: fd.periodicidade,
-    data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada')
+  compra: fd => gravar('compras', {nome: fd.nome.trim(), divisao: fd.divisao}, null, 'Adicionado à lista'),
+  dom: fd => gravar('tarefas_domesticas', {titulo: fd.titulo, divisao: fd.divisao, responsavel: fd.responsavel,
+    periodicidade: fd.periodicidade, data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada')
 };
 
 document.addEventListener('submit', async e => {
@@ -588,11 +607,19 @@ document.addEventListener('click', async e => {
       }
       case 'nova-d': return openSheet(fDom());
       case 'edit-d': return openSheet(fDom(S.domesticas.find(x => x.id === id)));
-      case 'feito-d': {
-        const d = S.domesticas.find(x => x.id === id), prox = proxDom(d.periodicidade);
-        const {error} = await sb.from('tarefas_domesticas').update({data_execucao: prox, ultima_feita: hoje(), feita_por: S.user.id}).eq('id', id);
+      case 'toggle-d': {
+        const d = S.domesticas.find(x => x.id === id);
+        let patch;
+        if (feitaHoje(d)) {   // desfazer o check de hoje
+          patch = d.periodicidade === 'diaria' ? {ultima_feita: null, feita_por: null}
+            : {ultima_feita: null, feita_por: null, data_execucao: d.data_anterior || hoje()};
+        } else {              // marcar como feita hoje
+          patch = d.periodicidade === 'diaria' ? {ultima_feita: hoje(), feita_por: S.user.id}
+            : {ultima_feita: hoje(), feita_por: S.user.id, data_anterior: d.data_execucao, data_execucao: proxDom(d.periodicidade)};
+        }
+        const {error} = await sb.from('tarefas_domesticas').update(patch).eq('id', id);
         if (error) throw error;
-        toast(`Feito · próxima: ${dataCurta(prox)}`); return agendar();
+        return agendar();
       }
       case 'novo-ev': return openSheet(fEvento());
       case 'edit-ev': return openSheet(fEvento(S.eventos.find(x => x.id === id)));

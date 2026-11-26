@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Lar">
+<meta name="theme-color" content="#b45f3c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Lar</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#fbf6f0;--card:#fffdf9;--line:#ede3d8;--txt:#3b2f2a;--mut:#8a7a70;--p:#b45f3c;--p2:#f5e3d6;--sage:#6b8f71;--gold:#b7791f;--red:#c0392b}
+@media (prefers-color-scheme: dark){:root{--bg:#1c1714;--card:#27201c;--line:#3a2f29;--txt:#f3e9e1;--mut:#b7a598;--p:#e08a62;--p2:#3a2a22;--sage:#8fb596;--gold:#e8b04a;--red:#ef6b5b}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 -apple-system,system-ui,"SF Pro Text",sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+.hidden{display:none!important}
+header.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 18px 12px;background:var(--card);border-bottom:1px solid var(--line)}
+header.top h2{margin:0;font-size:19px;font-family:Georgia,"New York",serif;font-weight:600}
+header.top small{color:var(--mut)}
+.grow{flex:1;min-width:0}
+main{max-width:620px;margin:0 auto;padding:14px 16px}
+small,.mut{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:6px 14px;margin-bottom:12px;box-shadow:0 2px 10px -6px rgba(90,50,30,.25)}
+.card.plain{padding:14px}
+.hero{background:linear-gradient(135deg,var(--p),#8a4a2e);color:#fff;border-radius:22px;padding:20px;margin-bottom:14px;box-shadow:0 12px 30px -14px var(--p)}
+.hero small{color:rgba(255,255,255,.8)}
+.hero h2{margin:4px 0 2px;font-family:Georgia,serif;font-size:24px;font-weight:600}
+.hero p{margin:6px 0 0;opacity:.92}
+.hero .big{font-size:30px;font-weight:700;margin:4px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+.stat b{display:block;font-size:22px;margin-top:4px}
+.sec{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:20px 4px 8px;font-weight:600}
+.rowb{display:flex;justify-content:space-between;align-items:center}
+.list{padding:2px 14px}
+.item{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item.feito .tt{text-decoration:line-through;color:var(--mut)}
+.item.feito{opacity:.75}
+.click{cursor:pointer}
+.tt{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:13px;color:var(--mut);margin-top:4px}
+.nota{margin:6px 0 0;font-size:14px;color:var(--mut);white-space:pre-wrap}
+.tag{background:var(--p2);color:var(--txt);padding:2px 9px;border-radius:99px;font-size:12px}
+.pill{padding:2px 9px;border-radius:99px;font-size:12px;color:#fff;background:var(--c)}
+.bad{color:var(--red);font-weight:600}
+.warn{color:var(--gold);font-weight:600}
+.chk{width:28px;height:28px;flex:none;border-radius:50%;border:2px solid var(--p);background:none;color:#fff;font-size:15px;display:grid;place-items:center;padding:0;cursor:pointer}
+.chk.on{background:var(--sage);border-color:var(--sage)}
+.hora{width:52px;flex:none;font-weight:700;color:var(--p);font-variant-numeric:tabular-nums}
+.amt{text-align:right;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.btn{display:block;width:100%;margin:10px 0 4px;padding:14px;border:0;border-radius:16px;background:var(--p);color:#fff;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 8px 20px -12px var(--p)}
+.btn.ghost{background:transparent;color:var(--p);border:1px solid var(--line);box-shadow:none}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);box-shadow:none}
+.btn-s{padding:6px 14px;border:0;border-radius:99px;background:var(--sage);color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.btn-round{width:46px;height:46px;flex:none;border:0;border-radius:50%;background:var(--p);color:#fff;font-size:24px;cursor:pointer}
+.ghost{background:transparent;border:0;color:var(--mut);font:inherit;font-size:18px;padding:6px 8px;cursor:pointer;border-radius:10px}
+.link-s{background:none;border:0;color:var(--p);font:inherit;font-size:14px;cursor:pointer}
+.chips{display:flex;gap:8px;margin:4px 0 12px;overflow-x:auto}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--mut);border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;white-space:nowrap;cursor:pointer}
+.chip.on{background:var(--p);color:#fff;border-color:var(--p)}
+.quick{display:flex;gap:8px;margin-bottom:6px}
+.quick input{flex:1}
+.quick select{width:auto;max-width:42%}
+.vazio{text-align:center;color:var(--mut);padding:26px 12px;background:var(--card);border:1px dashed var(--line);border-radius:18px;margin-bottom:12px}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block}
+.dot.ok{background:var(--sage);box-shadow:0 0 0 3px rgba(107,143,113,.2)}
+.dot.erro{background:var(--red)}
+.tabbar{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:596px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:6px;border-radius:24px;background:var(--card);border:1px solid var(--line);box-shadow:0 14px 34px -14px rgba(60,30,15,.4);z-index:6}
+.tabbar button{border:0;background:none;color:var(--mut);font:inherit;font-size:11px;padding:7px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.tabbar button span{font-size:19px;line-height:1.1}
+.tabbar button.on{color:var(--p);background:var(--p2);font-weight:600}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--txt);outline:none;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--p)}
+.check{display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--txt);font-size:15px}
+.check input{width:auto}
+.grid2 select,.grid2 input{min-width:0}
+.grid2.f{grid-template-columns:1fr 1fr}
+.code{font-size:30px;letter-spacing:.25em;font-weight:700;text-align:center;padding:16px;background:var(--bg);border-radius:16px;border:1px dashed var(--p);margin:12px 0;color:var(--p)}
+.sheet{position:fixed;inset:0;background:rgba(40,20,10,.35);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet-card{width:100%;max-width:620px;max-height:92vh;overflow:auto;background:var(--card);border-radius:26px 26px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));animation:up .28s ease}
+@keyframes up{from{transform:translateY(30px);opacity:0}}
+.sheet-card h2{margin:0 0 4px;font-family:Georgia,serif;font-size:21px;font-weight:600}
+.auth{max-width:400px;margin:9vh auto;padding:20px;text-align:center}
+.auth .logo{font-size:52px}
+.auth h1{font-family:Georgia,serif;font-weight:600;margin:6px 0 2px}
+.auth .card{text-align:left;padding:14px}
+.auth .card h3{margin:0 0 4px}
+.link{background:none;border:0;color:var(--p);font:inherit;margin-top:12px;cursor:pointer;display:block;width:100%}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(200%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:14px;transition:transform .3s;z-index:20;font-size:14px;max-width:90%;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="sheet" class="sheet hidden"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ===== CONFIGURAÇÃO: preenche com os dados do teu projeto Supabase ===== */
+const CFG = {
+  url: 'https://tfxzqegtdihylqdrrobh.supabase.co/rest/v1/',
+  key: 'sb_publishable_nIcTRIbkv9cyopjBjrcMmw_ZjUuH7iX'   // a chave "anon public" (nunca a "service_role")
+};
+/* ====================================================================== */
+
+const sb = CFG.url.includes('SEU-PROJETO') ? null : supabase.createClient(CFG.url, CFG.key);
+
+const S = {view:'auth', modo:'entrar', user:null, casa:null, membros:[], tarefas:[], compras:[], eventos:[], pags:[], hist:[],
+  tab:'hoje', filtroT:'pend', sync:'ligar', canal:null, timer:null};
+
+/* ---------- utilitários ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = v => new Intl.NumberFormat('pt-PT', {style:'currency', currency:'EUR'}).format(+v || 0);
+const fmt = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const hoje = () => { const d = new Date(); return fmt(d.getFullYear(), d.getMonth()+1, d.getDate()); };
+const parse = iso => { const [y,m,d] = iso.split('-').map(Number); return {y, m, d}; };
+const ms = iso => { const {y,m,d} = parse(iso); return Date.UTC(y, m-1, d); };
+const diasEntre = (a, b) => Math.round((ms(a) - ms(b)) / 864e5);
+const addDias = (iso, n) => { const {y,m,d} = parse(iso); const x = new Date(y, m-1, d+n); return fmt(x.getFullYear(), x.getMonth()+1, x.getDate()); };
+const addMeses = (iso, k) => { const {y,m,d} = parse(iso); const t = m-1+k; const ny = y+Math.floor(t/12); const nm = ((t%12)+12)%12;
+  const last = new Date(ny, nm+1, 0).getDate(); return fmt(ny, nm+1, Math.min(d, last)); };
+const dataCurta = iso => { const {y,m,d} = parse(iso); return new Date(y, m-1, d, 12).toLocaleDateString('pt-PT', {day:'numeric', month:'short'}); };
+const dataLonga = iso => { const {y,m,d} = parse(iso); return new Date(y, m-1, d, 12).toLocaleDateString('pt-PT', {weekday:'long', day:'numeric', month:'long'}); };
+const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite'; };
+const vazio = t => `<div class="vazio">${t}</div>`;
+
+const FREQ = {
+  semanal:    {l:'Semanal', s:'Semanal', dias:7, mult:52/12},
+  mensal:     {l:'Mensal', s:'Mensal', meses:1, mult:1},
+  trimestral: {l:'Trimestral (de 3 em 3 meses)', s:'Trimestral', meses:3, mult:1/3},
+  semestral:  {l:'Semestral (2 vezes por ano)', s:'Semestral', meses:6, mult:1/6},
+  anual:      {l:'Anual', s:'Anual', meses:12, mult:1/12},
+  bienal:     {l:'Bienal (de 2 em 2 anos)', s:'Bienal', meses:24, mult:1/24}
+};
+const proxima = (iso, f) => FREQ[f].dias ? addDias(iso, FREQ[f].dias) : addMeses(iso, FREQ[f].meses);
+const PRIO = {alta:{l:'Alta', c:'#c0392b', o:0}, media:{l:'Média', c:'#b7791f', o:1}, baixa:{l:'Baixa', c:'#6b8f71', o:2}};
+const CAT_T = ['Casa', 'Saúde', 'Família', 'Trabalho', 'Pessoal', 'Finanças', 'Outro'];
+const CAT_C = ['Mercearia', 'Frescos', 'Higiene', 'Limpeza', 'Casa', 'Outros'];
+const CAT_P = ['Habitação', 'Água, luz e gás', 'Telecomunicações', 'Seguros', 'Transporte', 'Educação', 'Saúde', 'Subscrições', 'Impostos', 'Outros'];
+const TIPO_E = {refeicao:'🍽️ Refeição', consulta:'🩺 Consulta', outro:'📌 Outro'};
+
+const nomeDe = uid => S.membros.find(m => m.user_id === uid)?.nome || '';
+const minhoNome = () => nomeDe(S.user?.id);
+const ordemT = (a, b) => (PRIO[a.prioridade].o - PRIO[b.prioridade].o) || ((a.data_limite || '9999').localeCompare(b.data_limite || '9999'));
+const selOpts = (name, arr, v) => `<select name="${name}"><option value="">—</option>${arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+const btns = () => `<button class="btn">Guardar</button><button type="button" class="btn ghost" data-a="close">Cancelar</button>`;
+const txtSync = () => ({ok:'Sincronizado', ligar:'A ligar…', erro:'Sem ligação'})[S.sync];
+
+function toast(m) {
+  const t = $('#toast'); t.textContent = m; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function fail(e) { console.error(e); toast(e?.message || 'Ocorreu um erro'); }
+function openSheet(html) { $('#sheet').innerHTML = `<div class="sheet-card">${html}</div>`; $('#sheet').classList.remove('hidden'); }
+function closeSheet() { $('#sheet').classList.add('hidden'); $('#sheet').innerHTML = ''; }
+
+/* ---------- dados e tempo real ---------- */
+async function carregar() {
+  const id = S.casa.id, q = t => sb.from(t).select('*').eq('casa_id', id);
+  const res = await Promise.all([
+    sb.from('casa_membros').select('*').eq('casa_id', id).order('entrou_em'),
+    q('tarefas').order('criado_em'),
+    q('compras').order('criado_em'),
+    q('eventos').order('data').order('hora', {nullsFirst: true}),
+    q('pagamentos').order('proximo_vencimento'),
+    q('pagamentos_historico').order('data_pago', {ascending: false}).limit(100)
+  ]);
+  for (const r of res) if (r.error) throw r.error;
+  const [m, t, c, e, p, h] = res;
+  Object.assign(S, {membros: m.data, tarefas: t.data, compras: c.data, eventos: e.data, pags: p.data, hist: h.data});
+  render();
+}
+
+// agrupa várias alterações seguidas numa só atualização
+function agendar() { clearTimeout(S.timer); S.timer = setTimeout(() => carregar().catch(fail), 250); }
+
+function atualizaSync() {
+  const t = $('#sync'); if (t) t.textContent = txtSync();
+  const d = document.querySelector('.dot'); if (d) d.className = 'dot ' + S.sync;
+}
+
+function subscrever() {
+  if (S.canal) sb.removeChannel(S.canal);
+  S.sync = 'ligar'; atualizaSync();
+  const ch = sb.channel('casa-' + S.casa.id);
+  ['tarefas', 'compras', 'eventos', 'pagamentos', 'pagamentos_historico', 'casa_membros'].forEach(t =>
+    ch.on('postgres_changes', {event: '*', schema: 'public', table: t, filter: `casa_id=eq.${S.casa.id}`}, agendar));
+  ch.subscribe(st => { S.sync = st === 'SUBSCRIBED' ? 'ok' : 'erro'; atualizaSync(); });
+  S.canal = ch;
+}
+
+async function boot() {
+  if (!sb) return render();
+  const {data: {session}} = await sb.auth.getSession();
+  S.user = session?.user || null;
+  if (!S.user) {
+    if (S.canal) { sb.removeChannel(S.canal); S.canal = null; }
+    S.casa = null; S.view = 'auth'; return render();
+  }
+  try {
+    const {data, error} = await sb.from('casa_membros').select('nome, casas(id, nome, codigo_convite)').eq('user_id', S.user.id).maybeSingle();
+    if (error) throw error;
+    if (!data) { S.view = 'onboard'; return render(); }
+    S.casa = {id: data.casas.id, nome: data.casas.nome, codigo: data.casas.codigo_convite};
+    S.view = 'app';
+    await carregar();
+    subscrever();
+  } catch (e) { fail(e); }
+}
+
+/* ---------- ecrãs ---------- */
+function render() {
+  if (!sb) { $('#app').innerHTML = '<div class="auth"><div class="card plain">Falta configurar o Supabase: edita a constante CFG no index.html.</div></div>'; return; }
+  const v = {auth: vAuth, onboard: vOnboard, app: vApp}[S.view];
+  $('#app').innerHTML = v();
+}
+
+function vAuth() {
+  const login = S.modo === 'entrar';
+  return `<div class="auth"><div class="logo">🏡</div><h1>Lar</h1>
+    <p class="mut">A vossa casa, organizada e sempre em sintonia.</p>
+    <form class="card plain" data-form="auth">
+      <label>Email</label><input name="email" type="email" required autocomplete="email">
+      <label>Palavra-passe</label><input name="pass" type="password" required minlength="6" autocomplete="${login ? 'current-password' : 'new-password'}">
+      <button class="btn">${login ? 'Entrar' : 'Criar conta'}</button>
+    </form>
+    <button class="link" data-a="toggle-modo">${login ? 'Ainda não tens conta? Regista-te' : 'Já tens conta? Entrar'}</button>
+    ${login ? '<button class="link" data-a="reset">Esqueci-me da palavra-passe</button>' : ''}</div>`;
+}
+
+function vOnboard() {
+  return `<div class="auth"><div class="logo">🏡</div><h1>Bem-vindos!</h1>
+    <p class="mut">Cria a vossa casa ou entra na de quem já a criou.</p>
+    <form class="card plain" data-form="criar"><h3>Criar a nossa casa</h3>
+      <label>Nome da casa</label><input name="nome" required placeholder="ex: Casa dos Duarte">
+      <label>O teu nome</label><input name="meu" required placeholder="ex: Rui">
+      <button class="btn">Criar casa</button></form>
+    <form class="card plain" data-form="aderir"><h3>Entrar com código</h3>
+      <label>Código de convite</label><input name="codigo" required autocapitalize="characters" placeholder="ex: 1A2B3C">
+      <label>O teu nome</label><input name="meu" required>
+      <button class="btn ghost">Entrar</button></form>
+    <button class="link" data-a="sair">Terminar sessão</button></div>`;
+}
+
+function vApp() {
+  const abas = [['hoje','🏡','Hoje'], ['tarefas','✅','Tarefas'], ['compras','🛒','Compras'], ['agenda','📅','Agenda'], ['pags','💳','Pagar']];
+  const corpo = {hoje: tHoje, tarefas: tTarefas, compras: tCompras, agenda: tAgenda, pags: tPags}[S.tab]();
+  return `<header class="top"><div class="grow"><small>Olá, ${esc(minhoNome())}</small><h2>${esc(S.casa.nome)}</h2></div>
+    <span class="sync"><i class="dot ${S.sync}"></i><span id="sync">${txtSync()}</span></span>
+    <button class="ghost" data-a="casa" aria-label="Casa">👥</button></header>
+    <main>${corpo}</main>
+    <nav class="tabbar">${abas.map(([k, i, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}"><span>${i}</span>${l}</button>`).join('')}</nav>`;
+}
+
+const stat = (l, v) => `<div class="stat"><small>${l}</small><b>${v}</b></div>`;
+
+function itemTarefa(t) {
+  const dif = t.data_limite ? diasEntre(t.data_limite, hoje()) : null;
+  const atras = !t.feito && dif !== null && dif < 0;
+  return `<div class="item ${t.feito ? 'feito' : ''}">
+    <button class="chk ${t.feito ? 'on' : ''}" data-a="toggle-t" data-id="${t.id}" aria-label="Concluir">${t.feito ? '✓' : ''}</button>
+    <div class="grow click" data-a="edit-t" data-id="${t.id}">
+      <div class="tt">${esc(t.titulo)}</div>
+      <div class="meta"><span class="pill" style="--c:${PRIO[t.prioridade].c}">${PRIO[t.prioridade].l}</span>
+        ${t.categoria ? `<span class="tag">${esc(t.categoria)}</span>` : ''}
+        ${t.data_limite ? `<span class="${atras ? 'bad' : ''}">📅 ${atras ? 'Atrasada · ' : ''}${dataCurta(t.data_limite)}</span>` : ''}
+        ${t.atribuido_a ? `<span>👤 ${esc(nomeDe(t.atribuido_a))}</span>` : ''}</div>
+      ${t.notas ? `<p class="nota">${esc(t.notas)}</p>` : ''}
+    </div></div>`;
+}
+
+function itemCompra(c) {
+  return `<div class="item ${c.comprado ? 'feito' : ''}">
+    <button class="chk ${c.comprado ? 'on' : ''}" data-a="toggle-c" data-id="${c.id}" aria-label="Comprado">${c.comprado ? '✓' : ''}</button>
+    <div class="grow"><div class="tt">${esc(c.nome)}</div><div class="meta"><span>${esc(nomeDe(c.criado_por))}</span></div></div>
+    <button class="ghost" data-a="del" data-t="compras" data-id="${c.id}" aria-label="Apagar">✕</button></div>`;
+}
+
+function itemEvento(e) {
+  return `<div class="item click" data-a="edit-ev" data-id="${e.id}">
+    <div class="hora">${e.hora ? e.hora.slice(0, 5) : '—'}</div>
+    <div class="grow"><div class="tt">${esc(e.titulo)}</div>
+      <div class="meta"><span class="tag">${TIPO_E[e.tipo]}</span>${e.quem ? `<span>👤 ${esc(nomeDe(e.quem))}</span>` : ''}</div>
+      ${e.notas ? `<p class="nota">${esc(e.notas)}</p>` : ''}</div></div>`;
+}
+
+function itemPag(p) {
+  const d = diasEntre(p.proximo_vencimento, hoje());
+  const estado = !p.ativo ? '<span class="tag">Pausado</span>'
+    : d < 0 ? `<span class="bad">Vencido há ${-d} dia(s)</span>`
+    : d === 0 ? '<span class="warn">Vence hoje</span>'
+    : d <= 7 ? `<span class="warn">Em ${d} dia(s)</span>`
+    : `<span>${dataCurta(p.proximo_vencimento)}</span>`;
+  return `<div class="item">
+    <div class="grow click" data-a="edit-pag" data-id="${p.id}">
+      <div class="tt">${esc(p.nome)}</div>
+      <div class="meta"><span class="tag">${FREQ[p.frequencia].s}</span>${p.categoria ? `<span class="tag">${esc(p.categoria)}</span>` : ''}${estado}</div></div>
+    <div class="amt"><b>${eur(p.valor)}</b>${p.ativo ? `<button class="btn-s" data-a="pagar" data-id="${p.id}">Pago</button>` : ''}</div></div>`;
+}
+
+function tHoje() {
+  const h = hoje();
+  const tHj = S.tarefas.filter(t => !t.feito && t.data_limite && t.data_limite <= h).sort(ordemT);
+  const evHj = S.eventos.filter(e => e.data === h);
+  const porComprar = S.compras.filter(c => !c.comprado).length;
+  const aPagar = S.pags.filter(p => p.ativo && diasEntre(p.proximo_vencimento, h) <= 7);
+  const total = aPagar.reduce((s, p) => s + (+p.valor), 0);
+  return `<div class="hero"><small>${dataLonga(h)}</small>
+      <h2>${saudacao()}, ${esc(minhoNome())} 👋</h2>
+      <p>${tHj.length ? `Tens ${tHj.length} tarefa(s) para hoje.` : 'Nada urgente para hoje. Aproveita o dia!'}</p></div>
+    <div class="grid2">${stat('🛒 Por comprar', porComprar)}${stat('💳 A pagar (7 dias)', eur(total))}</div>
+    <h3 class="sec">Tarefas de hoje e atrasadas</h3>
+    ${tHj.length ? `<div class="card list">${tHj.map(itemTarefa).join('')}</div>` : vazio('Sem tarefas para hoje.')}
+    <h3 class="sec">Agenda de hoje</h3>
+    ${evHj.length ? `<div class="card list">${evHj.map(itemEvento).join('')}</div>` : vazio('Sem compromissos hoje.')}`;
+}
+
+function tTarefas() {
+  const f = S.filtroT;
+  const lista = S.tarefas.filter(t => f === 'pend' ? !t.feito : f === 'feitas' ? t.feito : true)
+    .sort((a, b) => (a.feito - b.feito) || ordemT(a, b));
+  return `<div class="chips">${[['pend','Por fazer'], ['feitas','Feitas'], ['todas','Todas']].map(([k, l]) =>
+      `<button class="chip ${f === k ? 'on' : ''}" data-a="filtro-t" data-v="${k}">${l}</button>`).join('')}</div>
+    <button class="btn" data-a="nova-t">+ Nova tarefa</button>
+    ${lista.length ? `<div class="card list">${lista.map(itemTarefa).join('')}</div>`
+      : vazio(f === 'feitas' ? 'Ainda não há tarefas concluídas.' : 'Tudo em dia ✨')}`;
+}
+
+function tCompras() {
+  const pend = S.compras.filter(c => !c.comprado), feitos = S.compras.filter(c => c.comprado);
+  const grupos = {};
+  pend.forEach(c => { const k = c.categoria || 'Outros'; (grupos[k] = grupos[k] || []).push(c); });
+  return `<form class="quick" data-form="compra"><input name="nome" required placeholder="Adicionar à lista…" autocomplete="off">
+      <select name="categoria">${CAT_C.map(c => `<option>${c}</option>`).join('')}</select>
+      <button class="btn-round" aria-label="Adicionar">+</button></form>
+    ${pend.length ? Object.keys(grupos).map(k => `<h3 class="sec">${esc(k)}</h3><div class="card list">${grupos[k].map(itemCompra).join('')}</div>`).join('')
+      : vazio('A lista de compras está vazia 🛍️')}
+    ${feitos.length ? `<div class="rowb"><h3 class="sec">Já comprado (${feitos.length})</h3><button class="link-s" data-a="limpar-compras">Limpar</button></div>
+      <div class="card list">${feitos.map(itemCompra).join('')}</div>` : ''}`;
+}
+
+function tAgenda() {
+  const hj = hoje(), g = {};
+  S.eventos.filter(e => e.data >= hj).forEach(e => (g[e.data] = g[e.data] || []).push(e));
+  const dias = Object.keys(g).sort();
+  return `<button class="btn" data-a="novo-ev">+ Novo compromisso</button>
+    ${dias.length ? dias.map(d => `<h3 class="sec">${dataLonga(d)}</h3><div class="card list">${g[d].map(itemEvento).join('')}</div>`).join('')
+      : vazio('Sem compromissos marcados. Regista almoços, consultas e idas ao médico.')}`;
+}
+
+function tPags() {
+  const ativos = S.pags.filter(p => p.ativo);
+  const mensal = ativos.reduce((s, p) => s + (+p.valor) * FREQ[p.frequencia].mult, 0);
+  const lista = [...S.pags].sort((a, b) => (b.ativo - a.ativo) || a.proximo_vencimento.localeCompare(b.proximo_vencimento));
+  return `<div class="hero"><small>Custo mensal estimado</small><div class="big">${eur(mensal)}</div>
+      <small>${ativos.length} pagamento(s) ativo(s) · ${eur(mensal * 12)} por ano</small></div>
+    <button class="btn" data-a="novo-pag">+ Novo pagamento</button>
+    ${lista.length ? `<div class="card list">${lista.map(itemPag).join('')}</div>` : vazio('Regista as contas da casa: renda, luz, água, seguros…')}
+    <h3 class="sec">Pagos recentemente</h3>
+    ${S.hist.length ? `<div class="card list">${S.hist.slice(0, 15).map(x => `<div class="item">
+        <div class="grow"><div class="tt">${esc(x.nome)}</div><div class="meta"><span>${dataCurta(x.data_pago)}</span><span>👤 ${esc(nomeDe(x.pago_por))}</span></div></div>
+        <b>${eur(x.valor)}</b></div>`).join('')}</div>` : vazio('Ainda não há pagamentos registados.')}`;
+}
+
+/* ---------- formulários (folhas) ---------- */
+const fTarefa = (t = {}) => `<h2>${t.id ? 'Editar tarefa' : 'Nova tarefa'}</h2>
+<form data-form="tarefa">
+  ${t.id ? `<input type="hidden" name="id" value="${t.id}">` : ''}
+  <label>O que é preciso fazer?</label><input name="titulo" required value="${esc(t.titulo)}" placeholder="ex: Marcar dentista">
+  <div class="grid2 f"><div><label>Prioridade</label><select name="prioridade">${Object.entries(PRIO).map(([k, v]) =>
+      `<option value="${k}" ${k === (t.prioridade || 'media') ? 'selected' : ''}>${v.l}</option>`).join('')}</select></div>
+    <div><label>Prazo</label><input type="date" name="data_limite" value="${t.data_limite || ''}"></div></div>
+  <div class="grid2 f"><div><label>Categoria</label>${selOpts('categoria', CAT_T, t.categoria)}</div>
+    <div><label>Atribuir a</label><select name="atribuido_a"><option value="">Ninguém</option>${S.membros.map(m =>
+      `<option value="${m.user_id}" ${m.user_id === t.atribuido_a ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></div></div>
+  <label>Notas</label><textarea name="notas" rows="3">${esc(t.notas)}</textarea>
+  ${btns()}
+  ${t.id ? `<button type="button" class="btn danger" data-a="del" data-t="tarefas" data-id="${t.id}">Apagar tarefa</button>` : ''}
+</form>`;
+
+const fEvento = (e = {}) => `<h2>${e.id ? 'Editar compromisso' : 'Novo compromisso'}</h2>
+<form data-form="evento">
+  ${e.id ? `<input type="hidden" name="id" value="${e.id}">` : ''}
+  <label>Descrição</label><input name="titulo" required value="${esc(e.titulo)}" placeholder="ex: Almoço em casa da mãe">
+  <div class="grid2 f"><div><label>Dia</label><input type="date" name="data" required value="${e.data || hoje()}"></div>
+    <div><label>Hora (opcional)</label><input type="time" name="hora" value="${e.hora ? e.hora.slice(0, 5) : ''}"></div></div>
+  <div class="grid2 f"><div><label>Tipo</label><select name="tipo">${Object.entries(TIPO_E).map(([k, v]) =>
+      `<option value="${k}" ${k === (e.tipo || 'outro') ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div><label>Quem</label><select name="quem"><option value="">Todos</option>${S.membros.map(m =>
+      `<option value="${m.user_id}" ${m.user_id === e.quem ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></div></div>
+  <label>Notas</label><textarea name="notas" rows="3" placeholder="Ex: levar exames, ementa, morada…">${esc(e.notas)}</textarea>
+  ${btns()}
+  ${e.id ? `<button type="button" class="btn danger" data-a="del" data-t="eventos" data-id="${e.id}">Apagar compromisso</button>` : ''}
+</form>`;
+
+const fPag = (p = {}) => `<h2>${p.id ? 'Editar pagamento' : 'Novo pagamento'}</h2>
+<form data-form="pag">
+  ${p.id ? `<input type="hidden" name="id" value="${p.id}">` : ''}
+  <label>Nome</label><input name="nome" required value="${esc(p.nome)}" placeholder="ex: Renda, Eletricidade, Seguro do carro">
+  <div class="grid2 f"><div><label>Valor (€)</label><input type="number" step="0.01" min="0" name="valor" required inputmode="decimal" value="${p.valor ?? ''}"></div>
+    <div><label>Frequência</label><select name="frequencia">${Object.entries(FREQ).map(([k, v]) =>
+      `<option value="${k}" ${k === (p.frequencia || 'mensal') ? 'selected' : ''}>${v.l}</option>`).join('')}</select></div></div>
+  <div class="grid2 f"><div><label>Próximo vencimento</label><input type="date" name="proximo_vencimento" required value="${p.proximo_vencimento || hoje()}"></div>
+    <div><label>Categoria</label>${selOpts('categoria', CAT_P, p.categoria)}</div></div>
+  <label>Notas</label><textarea name="notas" rows="2" placeholder="Ex: referência, número de contrato…">${esc(p.notas)}</textarea>
+  <label class="check"><input type="checkbox" name="ativo" ${p.ativo !== false ? 'checked' : ''}> Ativo</label>
+  ${btns()}
+  ${p.id ? `<button type="button" class="btn danger" data-a="del" data-t="pagamentos" data-id="${p.id}">Apagar pagamento</button>` : ''}
+</form>`;
+
+const fCasa = () => `<h2>${esc(S.casa.nome)}</h2>
+  <p class="mut">Partilha este código com quem vive contigo para entrarem na mesma casa:</p>
+  <div class="code">${esc(S.casa.codigo)}</div>
+  <h3 class="sec">Pessoas</h3>
+  <div class="card list">${S.membros.map(m => `<div class="item"><div class="grow"><b>${esc(m.nome)}</b>${m.user_id === S.user.id ? ' <small>(tu)</small>' : ''}</div></div>`).join('')}</div>
+  <button class="btn ghost" data-a="sair">Terminar sessão</button>
+  <button class="btn ghost" data-a="close">Fechar</button>`;
+
+/* ---------- ações ---------- */
+async function gravar(tabela, dados, id, msg) {
+  const row = {casa_id: S.casa.id, ...dados};
+  if (id) row.id = id;
+  const {error} = await sb.from(tabela).upsert(row);
+  if (error) throw error;
+  closeSheet(); toast(msg); agendar();
+}
+
+async function pagar(id) {
+  const p = S.pags.find(x => x.id === id); if (!p) return;
+  const h = hoje();
+  let prox = proxima(p.proximo_vencimento, p.frequencia);
+  while (diasEntre(prox, h) <= 0) prox = proxima(prox, p.frequencia);   // avança até um vencimento futuro
+  const r1 = await sb.from('pagamentos_historico').insert({casa_id: S.casa.id, pagamento_id: p.id, nome: p.nome, valor: p.valor, data_pago: h, pago_por: S.user.id});
+  if (r1.error) throw r1.error;
+  const r2 = await sb.from('pagamentos').update({proximo_vencimento: prox}).eq('id', p.id);
+  if (r2.error) throw r2.error;
+  toast(`${p.nome} pago · próximo: ${dataCurta(prox)}`); agendar();
+}
+
+const FORMS = {
+  auth: async fd => {
+    if (S.modo === 'entrar') {
+      const {error} = await sb.auth.signInWithPassword({email: fd.email, password: fd.pass});
+      if (error) throw error;
+    } else {
+      const {data, error} = await sb.auth.signUp({email: fd.email, password: fd.pass});
+      if (error) throw error;
+      if (!data.session) toast('Enviámos um email de confirmação. Confirma e depois entra.');
+    }
+  },
+  criar: async fd => {
+    const {error} = await sb.rpc('criar_casa', {p_nome: fd.nome, p_meu_nome: fd.meu});
+    if (error) throw error;
+    toast('Casa criada 🏡'); await boot();
+  },
+  aderir: async fd => {
+    const {error} = await sb.rpc('aderir_casa', {p_codigo: fd.codigo, p_meu_nome: fd.meu});
+    if (error) throw error;
+    toast('Bem-vindos à casa!'); await boot();
+  },
+  tarefa: fd => gravar('tarefas', {titulo: fd.titulo, notas: fd.notas || null, prioridade: fd.prioridade,
+    categoria: fd.categoria || null, data_limite: fd.data_limite || null, atribuido_a: fd.atribuido_a || null}, fd.id, 'Tarefa guardada'),
+  evento: fd => gravar('eventos', {titulo: fd.titulo, data: fd.data, hora: fd.hora || null, tipo: fd.tipo,
+    quem: fd.quem || null, notas: fd.notas || null}, fd.id, 'Compromisso guardado'),
+  pag: fd => gravar('pagamentos', {nome: fd.nome, valor: +fd.valor, frequencia: fd.frequencia, proximo_vencimento: fd.proximo_vencimento,
+    categoria: fd.categoria || null, ativo: fd.ativo === 'on', notas: fd.notas || null}, fd.id, 'Pagamento guardado'),
+  compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria}, null, 'Adicionado à lista')
+};
+
+document.addEventListener('submit', async e => {
+  const f = e.target;
+  if (!f.dataset.form) return;
+  e.preventDefault();
+  try { await FORMS[f.dataset.form](Object.fromEntries(new FormData(f))); }
+  catch (err) { fail(err); }
+});
+
+document.addEventListener('click', async e => {
+  if (e.target.id === 'sheet') return closeSheet();
+  const el = e.target.closest('[data-a],[data-tab]');
+  if (!el) return;
+  const id = el.dataset.id;
+  try {
+    if (el.dataset.tab) { S.tab = el.dataset.tab; return render(); }
+    switch (el.dataset.a) {
+      case 'toggle-modo': S.modo = S.modo === 'entrar' ? 'registar' : 'entrar'; return render();
+      case 'reset': {
+        const email = prompt('Email da tua conta:');
+        if (email) { const {error} = await sb.auth.resetPasswordForEmail(email); if (error) throw error; toast('Email enviado'); }
+        return;
+      }
+      case 'sair': closeSheet(); return sb.auth.signOut();
+      case 'casa': return openSheet(fCasa());
+      case 'close': return closeSheet();
+      case 'filtro-t': S.filtroT = el.dataset.v; return render();
+      case 'nova-t': return openSheet(fTarefa());
+      case 'edit-t': return openSheet(fTarefa(S.tarefas.find(x => x.id === id)));
+      case 'toggle-t': {
+        const t = S.tarefas.find(x => x.id === id); const feito = !t.feito;
+        const {error} = await sb.from('tarefas').update({feito, feito_em: feito ? new Date().toISOString() : null,
+          feito_por: feito ? S.user.id : null}).eq('id', id);
+        if (error) throw error;
+        return agendar();
+      }
+      case 'toggle-c': {
+        const c = S.compras.find(x => x.id === id); const comprado = !c.comprado;
+        const {error} = await sb.from('compras').update({comprado, comprado_por: comprado ? S.user.id : null}).eq('id', id);
+        if (error) throw error;
+        return agendar();
+      }
+      case 'limpar-compras': {
+        const {error} = await sb.from('compras').delete().eq('casa_id', S.casa.id).eq('comprado', true);
+        if (error) throw error;
+        toast('Lista limpa'); return agendar();
+      }
+      case 'novo-ev': return openSheet(fEvento());
+      case 'edit-ev': return openSheet(fEvento(S.eventos.find(x => x.id === id)));
+      case 'novo-pag': return openSheet(fPag());
+      case 'edit-pag': return openSheet(fPag(S.pags.find(x => x.id === id)));
+      case 'pagar': return pagar(id);
+      case 'del': {
+        if (!confirm('Apagar este item?')) return;
+        const {error} = await sb.from(el.dataset.t).delete().eq('id', id);
+        if (error) throw error;
+        closeSheet(); toast('Apagado'); return agendar();
+      }
+    }
+  } catch (err) { fail(err); }
+});
+
+// no iPhone, a ligação em tempo real pode cair quando a app está em segundo plano: atualiza ao voltar
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.casa) agendar(); });
+
+/* ---------- arranque ---------- */
+if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') boot(); });
+boot();
+</script>
+</body>
+</html>

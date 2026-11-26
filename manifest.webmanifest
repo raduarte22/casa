@@ -1,0 +1,11 @@
+{
+  "name": "Lar",
+  "short_name": "Lar",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fbf6f0",
+  "theme_color": "#b45f3c",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

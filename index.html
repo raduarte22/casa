@@ -209,7 +209,10 @@ async function boot() {
   try {
     const {data, error} = await sb.from('casa_membros').select('nome, casas(id, nome, codigo_convite)').eq('user_id', S.user.id).maybeSingle();
     if (error) throw error;
-    if (!data) { S.view = 'onboard'; return render(); }
+    if (!data) {
+      if (S.canal) { sb.removeChannel(S.canal); S.canal = null; }
+      S.casa = null; S.view = 'onboard'; return render();
+    }
     S.casa = {id: data.casas.id, nome: data.casas.nome, codigo: data.casas.codigo_convite};
     S.view = 'app';
     await carregar();
@@ -475,6 +478,7 @@ const fCasa = () => `<h2>${esc(S.casa.nome)}</h2>
   <h3 class="sec">Pessoas</h3>
   <div class="card list">${S.membros.map(m => `<div class="item"><div class="grow"><b>${esc(m.nome)}</b>${m.user_id === S.user.id ? ' <small>(tu)</small>' : ''}</div></div>`).join('')}</div>
   <button class="btn ghost" data-a="sair">Terminar sessão</button>
+  <button class="btn danger" data-a="sair-casa">Sair desta casa</button>
   <button class="btn ghost" data-a="close">Fechar</button>`;
 
 /* ---------- ações ---------- */
@@ -553,6 +557,12 @@ document.addEventListener('click', async e => {
         return;
       }
       case 'sair': closeSheet(); return sb.auth.signOut();
+      case 'sair-casa': {
+        if (!confirm(`Sair de "${S.casa.nome}"? Deixas de ver os dados desta casa e podes entrar noutra com o código.`)) return;
+        const {error} = await sb.from('casa_membros').delete().eq('user_id', S.user.id);
+        if (error) throw error;
+        closeSheet(); toast('Saíste da casa'); return boot();
+      }
       case 'casa': return openSheet(fCasa());
       case 'close': return closeSheet();
       case 'filtro-t': S.filtroT = el.dataset.v; return render();

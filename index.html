@@ -70,13 +70,14 @@ small,.mut{color:var(--mut);font-size:13px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block}
 .dot.ok{background:var(--sage);box-shadow:0 0 0 3px rgba(107,143,113,.2)}
 .dot.erro{background:var(--red)}
-.tabbar{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:596px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:6px;border-radius:24px;background:var(--card);border:1px solid var(--line);box-shadow:0 14px 34px -14px rgba(60,30,15,.4);z-index:6}
+.tabbar{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:596px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:6px;border-radius:24px;background:var(--card);border:1px solid var(--line);box-shadow:0 14px 34px -14px rgba(60,30,15,.4);z-index:6}
 .tabbar button{border:0;background:none;color:var(--mut);font:inherit;font-size:11px;padding:7px 0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .tabbar button span{font-size:19px;line-height:1.1}
 .tabbar button.on{color:var(--p);background:var(--p2);font-weight:600}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
 input,select,textarea{width:100%;font:inherit;font-size:16px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--txt);outline:none;-webkit-appearance:none;appearance:none}
 input:focus,select:focus,textarea:focus{border-color:var(--p)}
+input[type=checkbox]{width:22px;height:22px;padding:0;min-height:0;-webkit-appearance:checkbox;appearance:checkbox;accent-color:var(--p);flex:none;cursor:pointer}
 .check{display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--txt);font-size:15px}
 .check input{width:auto}
 .grid2 select,.grid2 input{min-width:0}
@@ -92,8 +93,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--p)}
 .auth .card{text-align:left;padding:14px}
 .auth .card h3{margin:0 0 4px}
 .link{background:none;border:0;color:var(--p);font:inherit;margin-top:12px;cursor:pointer;display:block;width:100%}
-.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(200%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:14px;transition:transform .3s;z-index:20;font-size:14px;max-width:90%;text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);opacity:0;visibility:hidden;pointer-events:none;background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:14px;transition:opacity .25s,transform .25s,visibility .25s;z-index:20;font-size:14px;max-width:90%;text-align:center}
+.toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -111,7 +112,7 @@ const CFG = {
 
 const sb = CFG.url.includes('SEU-PROJETO') ? null : supabase.createClient(CFG.url, CFG.key);
 
-const S = {view:'auth', modo:'entrar', user:null, casa:null, membros:[], tarefas:[], compras:[], eventos:[], pags:[], hist:[],
+const S = {view:'auth', modo:'entrar', user:null, casa:null, membros:[], tarefas:[], compras:[], eventos:[], pags:[], hist:[], domesticas:[],
   tab:'hoje', filtroT:'pend', sync:'ligar', canal:null, timer:null};
 
 /* ---------- utilitários ---------- */
@@ -170,11 +171,12 @@ async function carregar() {
     q('compras').order('criado_em'),
     q('eventos').order('data').order('hora', {nullsFirst: true}),
     q('pagamentos').order('proximo_vencimento'),
-    q('pagamentos_historico').order('data_pago', {ascending: false}).limit(100)
+    q('pagamentos_historico').order('data_pago', {ascending: false}).limit(100),
+    q('tarefas_domesticas').order('data_execucao')
   ]);
   for (const r of res) if (r.error) throw r.error;
-  const [m, t, c, e, p, h] = res;
-  Object.assign(S, {membros: m.data, tarefas: t.data, compras: c.data, eventos: e.data, pags: p.data, hist: h.data});
+  const [m, t, c, e, p, h, dm] = res;
+  Object.assign(S, {membros: m.data, tarefas: t.data, compras: c.data, eventos: e.data, pags: p.data, hist: h.data, domesticas: dm.data});
   render();
 }
 
@@ -190,7 +192,7 @@ function subscrever() {
   if (S.canal) sb.removeChannel(S.canal);
   S.sync = 'ligar'; atualizaSync();
   const ch = sb.channel('casa-' + S.casa.id);
-  ['tarefas', 'compras', 'eventos', 'pagamentos', 'pagamentos_historico', 'casa_membros'].forEach(t =>
+  ['tarefas', 'tarefas_domesticas', 'compras', 'eventos', 'pagamentos', 'pagamentos_historico', 'casa_membros'].forEach(t =>
     ch.on('postgres_changes', {event: '*', schema: 'public', table: t, filter: `casa_id=eq.${S.casa.id}`}, agendar));
   ch.subscribe(st => { S.sync = st === 'SUBSCRIBED' ? 'ok' : 'erro'; atualizaSync(); });
   S.canal = ch;
@@ -250,8 +252,8 @@ function vOnboard() {
 }
 
 function vApp() {
-  const abas = [['hoje','🏡','Hoje'], ['tarefas','✅','Tarefas'], ['compras','🛒','Compras'], ['agenda','📅','Agenda'], ['pags','💳','Pagar']];
-  const corpo = {hoje: tHoje, tarefas: tTarefas, compras: tCompras, agenda: tAgenda, pags: tPags}[S.tab]();
+  const abas = [['hoje','🏡','Hoje'], ['tarefas','✅','Tarefas'], ['compras','🛒','Compras'], ['agenda','📅','Agenda'], ['pags','💳','Pagar'], ['dom','🧹','Casa']];
+  const corpo = {hoje: tHoje, tarefas: tTarefas, compras: tCompras, agenda: tAgenda, pags: tPags, dom: tDom}[S.tab]();
   return `<header class="top"><div class="grow"><small>Olá, ${esc(minhoNome())}</small><h2>${esc(S.casa.nome)}</h2></div>
     <span class="sync"><i class="dot ${S.sync}"></i><span id="sync">${txtSync()}</span></span>
     <button class="ghost" data-a="casa" aria-label="Casa">👥</button></header>
@@ -305,11 +307,61 @@ function itemPag(p) {
     <div class="amt"><b>${eur(p.valor)}</b>${p.ativo ? `<button class="btn-s" data-a="pagar" data-id="${p.id}">Pago</button>` : ''}</div></div>`;
 }
 
+/* ---------- tarefas domésticas ---------- */
+const DFREQ = {
+  diaria:     {l:'Diária', d:1},
+  semanal:    {l:'Semanal', d:7},
+  quinzenal:  {l:'Quinzenal (14 dias)', d:14},
+  mensal:     {l:'Mensal', m:1},
+  trimestral: {l:'Trimestral', m:3},
+  semestral:  {l:'Semestral', m:6},
+  anual:      {l:'Anual', m:12}
+};
+const proxDom = f => DFREQ[f].d ? addDias(hoje(), DFREQ[f].d) : addMeses(hoje(), DFREQ[f].m);
+
+function tDom() {
+  const lista = [...S.domesticas].sort((a, b) => a.data_execucao.localeCompare(b.data_execucao));
+  return `<button class="btn" data-a="nova-d">+ Nova tarefa da casa</button>
+    ${lista.length ? `<div class="card list">${lista.map(itemDom).join('')}</div>`
+      : vazio('Define as tarefas da casa: louça, lixo, limpeza, filtros… com responsável e periodicidade.')}
+    <small>Ao marcar como feita, a tarefa avança automaticamente para a próxima data.</small>`;
+}
+
+function itemDom(d) {
+  const dif = diasEntre(d.data_execucao, hoje());
+  const estado = dif < 0 ? `<span class="bad">Atrasada · ${dataCurta(d.data_execucao)}</span>`
+    : dif === 0 ? '<span class="warn">Hoje</span>' : `<span>${dataCurta(d.data_execucao)}</span>`;
+  return `<div class="item">
+    <div class="grow click" data-a="edit-d" data-id="${d.id}">
+      <div class="tt">${esc(d.titulo)}</div>
+      <div class="meta"><span class="tag">${DFREQ[d.periodicidade].l}</span>
+        <span>👤 ${esc(nomeDe(d.responsavel)) || 'Sem responsável'}</span>${estado}</div>
+      ${d.notas ? `<p class="nota">${esc(d.notas)}</p>` : ''}
+      ${d.ultima_feita ? `<small>Última vez: ${dataCurta(d.ultima_feita)}${d.feita_por ? ' por ' + esc(nomeDe(d.feita_por)) : ''}</small>` : ''}
+    </div>
+    <button class="btn-s" data-a="feito-d" data-id="${d.id}">Feito</button></div>`;
+}
+
+const fDom = (d = {}) => `<h2>${d.id ? 'Editar tarefa da casa' : 'Nova tarefa da casa'}</h2>
+<form data-form="dom">
+  ${d.id ? `<input type="hidden" name="id" value="${d.id}">` : ''}
+  <label>Tarefa</label><input name="titulo" required value="${esc(d.titulo)}" placeholder="ex: Tirar o lixo, Lavar a loiça">
+  <div class="grid2 f"><div><label>Responsável</label><select name="responsavel" required>${S.membros.map(m =>
+      `<option value="${m.user_id}" ${m.user_id === d.responsavel ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}</select></div>
+    <div><label>Periodicidade</label><select name="periodicidade">${Object.entries(DFREQ).map(([k, v]) =>
+      `<option value="${k}" ${k === (d.periodicidade || 'semanal') ? 'selected' : ''}>${v.l}</option>`).join('')}</select></div></div>
+  <label>Data de execução</label><input type="date" name="data_execucao" required value="${d.data_execucao || hoje()}">
+  <label>Notas</label><textarea name="notas" rows="2">${esc(d.notas)}</textarea>
+  ${btns()}
+  ${d.id ? `<button type="button" class="btn danger" data-a="del" data-t="tarefas_domesticas" data-id="${d.id}">Apagar tarefa</button>` : ''}
+</form>`;
+
 function tHoje() {
   const h = hoje();
   const tHj = S.tarefas.filter(t => !t.feito && t.data_limite && t.data_limite <= h).sort(ordemT);
   const evHj = S.eventos.filter(e => e.data === h);
   const porComprar = S.compras.filter(c => !c.comprado).length;
+  const domHj = S.domesticas.filter(d => d.data_execucao <= h).sort((a, b) => a.data_execucao.localeCompare(b.data_execucao));
   const aPagar = S.pags.filter(p => p.ativo && diasEntre(p.proximo_vencimento, h) <= 7);
   const total = aPagar.reduce((s, p) => s + (+p.valor), 0);
   return `<div class="hero"><small>${dataLonga(h)}</small>
@@ -318,6 +370,8 @@ function tHoje() {
     <div class="grid2">${stat('🛒 Por comprar', porComprar)}${stat('💳 A pagar (7 dias)', eur(total))}</div>
     <h3 class="sec">Tarefas de hoje e atrasadas</h3>
     ${tHj.length ? `<div class="card list">${tHj.map(itemTarefa).join('')}</div>` : vazio('Sem tarefas para hoje.')}
+    <h3 class="sec">Casa · para fazer</h3>
+    ${domHj.length ? `<div class="card list">${domHj.map(itemDom).join('')}</div>` : vazio('Nenhuma tarefa da casa para hoje.')}
     <h3 class="sec">Agenda de hoje</h3>
     ${evHj.length ? `<div class="card list">${evHj.map(itemEvento).join('')}</div>` : vazio('Sem compromissos hoje.')}`;
 }
@@ -471,7 +525,9 @@ const FORMS = {
     quem: fd.quem || null, notas: fd.notas || null}, fd.id, 'Compromisso guardado'),
   pag: fd => gravar('pagamentos', {nome: fd.nome, valor: +fd.valor, frequencia: fd.frequencia, proximo_vencimento: fd.proximo_vencimento,
     categoria: fd.categoria || null, ativo: fd.ativo === 'on', notas: fd.notas || null}, fd.id, 'Pagamento guardado'),
-  compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria}, null, 'Adicionado à lista')
+  compra: fd => gravar('compras', {nome: fd.nome.trim(), categoria: fd.categoria}, null, 'Adicionado à lista'),
+  dom: fd => gravar('tarefas_domesticas', {titulo: fd.titulo, responsavel: fd.responsavel, periodicidade: fd.periodicidade,
+    data_execucao: fd.data_execucao, notas: fd.notas || null}, fd.id, 'Tarefa guardada')
 };
 
 document.addEventListener('submit', async e => {
@@ -519,6 +575,14 @@ document.addEventListener('click', async e => {
         const {error} = await sb.from('compras').delete().eq('casa_id', S.casa.id).eq('comprado', true);
         if (error) throw error;
         toast('Lista limpa'); return agendar();
+      }
+      case 'nova-d': return openSheet(fDom());
+      case 'edit-d': return openSheet(fDom(S.domesticas.find(x => x.id === id)));
+      case 'feito-d': {
+        const d = S.domesticas.find(x => x.id === id), prox = proxDom(d.periodicidade);
+        const {error} = await sb.from('tarefas_domesticas').update({data_execucao: prox, ultima_feita: hoje(), feita_por: S.user.id}).eq('id', id);
+        if (error) throw error;
+        toast(`Feito · próxima: ${dataCurta(prox)}`); return agendar();
       }
       case 'novo-ev': return openSheet(fEvento());
       case 'edit-ev': return openSheet(fEvento(S.eventos.find(x => x.id === id)));
